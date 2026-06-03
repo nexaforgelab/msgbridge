@@ -13,6 +13,7 @@ License: Apache-2.0
 | Full usage guide | [docs/USAGE.md](docs/USAGE.md#english) | [docs/USAGE.md](docs/USAGE.md#中文) |
 | API reference | [docs/api.md](docs/api.md#english) | [docs/api.md](docs/api.md#中文) |
 | Scenario playbooks | [docs/SCENARIOS.md](docs/SCENARIOS.md#english) | [docs/SCENARIOS.md](docs/SCENARIOS.md#中文) |
+| Testing report | [docs/TESTING.md](docs/TESTING.md#english) | [docs/TESTING.md](docs/TESTING.md#中文) |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md#english) | [CONTRIBUTING.md](CONTRIBUTING.md#中文) |
 
 ## What It Solves
