@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>MsgBridge Console</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --line: #d8dee6;
+      --text: #17202a;
+      --muted: #667085;
+      --accent: #167f6b;
+      --accent-2: #235b8c;
+      --danger: #b42318;
+      --warn: #b54708;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+    header {
+      display: grid;
+      grid-template-columns: minmax(160px, 240px) 1fr auto;
+      gap: 16px;
+      align-items: center;
+      min-height: 64px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+    .muted { color: var(--muted); }
+    .keybar {
+      display: grid;
+      grid-template-columns: minmax(130px, 180px) minmax(130px, 180px) auto minmax(180px, 280px) auto;
+      gap: 8px;
+      align-items: center;
+      justify-content: end;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+    textarea {
+      min-height: 170px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      line-height: 1.45;
+    }
+    button {
+      border: 1px solid #126f5d;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-weight: 650;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.secondary {
+      color: var(--accent-2);
+      background: #fff;
+      border-color: #b8c7d9;
+    }
+    nav {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      padding: 10px 24px 0;
+      background: var(--panel);
+    }
+    nav button {
+      border: 0;
+      border-bottom: 3px solid transparent;
+      border-radius: 0;
+      color: var(--muted);
+      background: transparent;
+      padding: 10px 12px;
+    }
+    nav button.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+    main {
+      padding: 18px 24px 40px;
+      max-width: 1480px;
+      margin: 0 auto;
+    }
+    section { display: none; }
+    section.active { display: block; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .metric, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .metric .value {
+      font-size: 28px;
+      font-weight: 750;
+      margin-top: 6px;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(320px, 440px) 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+      word-break: break-word;
+    }
+    th {
+      background: #eef2f6;
+      color: #344054;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    tr:last-child td { border-bottom: 0; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #101828;
+      color: #e4e7ec;
+      padding: 12px;
+      border-radius: 8px;
+      min-height: 120px;
+      max-height: 520px;
+      overflow: auto;
+    }
+    .status-ok { color: var(--accent); font-weight: 700; }
+    .status-bad { color: var(--danger); font-weight: 700; }
+    .status-warn { color: var(--warn); font-weight: 700; }
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 860px) {
+      header, .split { grid-template-columns: 1fr; }
+      .keybar { grid-template-columns: 1fr; justify-content: stretch; }
+      main { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>MsgBridge</h1>
+      <div class="muted">企业协同消息网关</div>
+    </div>
+    <div class="muted" id="toast">ready</div>
+    <div class="keybar">
+      <input id="loginUser" placeholder="username" value="admin">
+      <input id="loginPassword" type="password" placeholder="password" value="admin123">
+      <button id="loginButton">登录</button>
+      <input id="adminKey" type="password" placeholder="X-MB-Admin-Key">
+      <button id="saveKey">保存密钥</button>
+    </div>
+  </header>
+
+  <nav id="tabs">
+    <button data-tab="dashboard" class="active">仪表盘</button>
+    <button data-tab="apps">应用</button>
+    <button data-tab="channels">渠道</button>
+    <button data-tab="templates">模板</button>
+    <button data-tab="routes">路由</button>
+    <button data-tab="messages">消息</button>
+    <button data-tab="audit">审计</button>
+    <button data-tab="system">系统</button>
+    <button data-tab="users">用户</button>
+    <button data-tab="send">发送测试</button>
+  </nav>
+
+  <main>
+    <section id="dashboard" class="active">
+      <div class="toolbar">
+        <strong>今日概览</strong>
+        <button class="secondary" data-action="load-dashboard">刷新</button>
+      </div>
+      <div class="grid" id="metrics"></div>
+      <div class="panel"><pre id="dashboardRaw"></pre></div>
+    </section>
+
+    <section id="apps">
+      <div class="split">
+        <div class="panel">
+          <div class="toolbar"><strong>应用表单</strong><button data-action="create-app">创建</button></div>
+          <input id="appId" placeholder="appId" value="crm">
+          <br><br>
+          <input id="appName" placeholder="appName" value="CRM">
+          <br><br>
+          <input id="appRateLimit" placeholder="rateLimitPerMin" value="600">
+          <br><br>
+          <input id="appIpWhitelist" placeholder="ipWhitelist，空表示不限">
+          <br><br>
+          <input id="ownerName" placeholder="ownerName" value="sales-owner">
+        </div>
+        <div>
+          <div class="toolbar"><strong>应用列表</strong><button class="secondary" data-action="load-apps">刷新</button></div>
+          <div id="appsTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="channels">
+      <div class="split">
+        <div class="panel">
+          <div class="toolbar"><strong>渠道 JSON</strong><button data-action="create-channel">保存</button></div>
+          <textarea id="channelJson">{
+  "channelCode": "wecom_sales",
+  "channelName": "企业微信销售群",
+  "channelType": "WE_COM_ROBOT",
+  "config": {
+    "default_msg_type": "markdown"
+  },
+  "secrets": {
+    "webhook_url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
+  }
+}</textarea>
+          <br><br>
+          <input id="testChannelCode" placeholder="channelCode for test" value="wecom_sales">
+          <br><br>
+          <button class="secondary" data-action="test-channel">发送渠道测试</button>
+          <button class="secondary" data-action="load-channel-health">健康概览</button>
+          <br><br>
+          <pre id="channelHealth"></pre>
+        </div>
+        <div>
+          <div class="toolbar"><strong>渠道列表</strong><button class="secondary" data-action="load-channels">刷新</button></div>
+          <div id="channelsTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="templates">
+      <div class="split">
+        <div class="panel">
+          <div class="toolbar"><strong>模板 JSON</strong><button data-action="create-template">保存</button></div>
+          <textarea id="templateJson">{
+  "templateCode": "tpl_order_paid_wecom_v1",
+  "templateName": "订单支付提醒",
+  "sceneCode": "ORDER_PAID",
+  "channelType": "WE_COM_ROBOT",
+  "msgType": "MARKDOWN",
+  "contentTemplate": "【新订单提醒】\\n客户：${customerName}\\n订单号：${orderNo}\\n金额：${amount} 元\\n详情：${url}",
+  "variables": {
+    "customerName": "客户名称",
+    "orderNo": "订单号",
+    "amount": "金额",
+    "url": "详情地址"
+  }
+}</textarea>
+          <br><br>
+          <button class="secondary" data-action="preview-template">预览模板</button>
+          <br><br>
+          <pre id="templatePreview"></pre>
+        </div>
+        <div>
+          <div class="toolbar"><strong>模板列表</strong><button class="secondary" data-action="load-templates">刷新</button></div>
+          <div id="templatesTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="routes">
+      <div class="split">
+        <div class="panel">
+          <div class="toolbar"><strong>路由 JSON</strong><button data-action="create-route">保存</button></div>
+          <textarea id="routeJson">{
+  "ruleCode": "route_order_paid_sales",
+  "ruleName": "订单支付推送销售群",
+  "sceneCode": "ORDER_PAID",
+  "routeKey": "sales_order_group",
+  "conditionExpr": "amount >= 10000",
+  "targetChannels": ["wecom_sales"],
+  "priority": 10
+}</textarea>
+          <br><br>
+          <button class="secondary" data-action="simulate-route">模拟路由</button>
+          <br><br>
+          <pre id="routePreview"></pre>
+        </div>
+        <div>
+          <div class="toolbar"><strong>路由列表</strong><button class="secondary" data-action="load-routes">刷新</button></div>
+          <div id="routesTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="messages">
+      <div class="toolbar">
+        <strong>消息任务</strong>
+        <span class="row-actions">
+          <button class="secondary" data-action="load-messages">查询</button>
+          <button class="secondary" data-action="export-messages">导出 CSV</button>
+          <button class="secondary" data-action="preview-purge">预览清理</button>
+          <button class="secondary" data-action="purge-messages">清理</button>
+          <button class="secondary" data-action="bulk-retry">批量重试</button>
+          <button class="secondary" data-action="bulk-terminate">批量终止</button>
+        </span>
+      </div>
+      <div class="grid">
+        <input id="filterAppId" placeholder="appId">
+        <input id="filterSceneCode" placeholder="sceneCode">
+        <input id="filterStatus" placeholder="status">
+        <input id="filterRequestId" placeholder="requestId">
+        <input id="purgeBefore" placeholder="清理早于 ISO 时间，例如 2026-01-01T00:00:00Z">
+      </div>
+      <textarea id="bulkMessageIds" placeholder="批量消息 ID，一行一个或逗号分隔"></textarea>
+      <br><br>
+      <div id="messagesTable"></div>
+      <br>
+      <pre id="messageDetail"></pre>
+    </section>
+
+    <section id="audit">
+      <div class="toolbar">
+        <strong>审计日志</strong>
+        <button class="secondary" data-action="load-audit">刷新</button>
+      </div>
+      <div id="auditTable"></div>
+    </section>
+
+    <section id="system">
+      <div class="toolbar">
+        <strong>系统诊断</strong>
+        <button class="secondary" data-action="load-system">刷新</button>
+      </div>
+      <div class="grid" id="systemMetrics"></div>
+      <div class="panel"><pre id="systemRaw"></pre></div>
+    </section>
+
+    <section id="users">
+      <div class="split">
+        <div class="panel">
+          <div class="toolbar"><strong>后台用户 JSON</strong><button data-action="save-user">保存</button></div>
+          <textarea id="userJson">{
+  "username": "ops",
+  "displayName": "运维人员",
+  "password": "ops123456",
+  "role": "OPS",
+  "status": 1
+}</textarea>
+        </div>
+        <div>
+          <div class="toolbar"><strong>用户列表</strong><button class="secondary" data-action="load-users">刷新</button></div>
+          <div id="usersTable"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="send">
+      <div class="split">
+        <div class="panel">
+          <div class="toolbar"><strong>统一 API 测试</strong><button data-action="send-message">发送</button></div>
+          <input id="sendAppId" placeholder="appId" value="demo">
+          <br><br>
+          <input id="sendSecret" type="password" placeholder="appSecret" value="demo-secret">
+          <br><br>
+          <textarea id="sendJson">{
+  "requestId": "crm-order-20260601-000001",
+  "appId": "demo",
+  "sceneCode": "ORDER_PAID",
+  "priority": "NORMAL",
+  "receiver": {
+    "type": "ROUTE",
+    "routeKey": "sales_order_group"
+  },
+  "message": {
+    "type": "ALERT",
+    "title": "新订单提醒",
+    "content": "客户张三已支付订单，金额 12800 元",
+    "url": "https://crm.example.com/orders/10001",
+    "data": {
+      "customerName": "张三",
+      "amount": "12800",
+      "orderNo": "SO202606010001"
+    }
+  },
+  "options": {
+    "deduplicate": true,
+    "timeoutSeconds": 10,
+    "retry": true
+  }
+}</textarea>
+        </div>
+        <div class="panel">
+          <strong>响应</strong>
+          <br><br>
+          <pre id="sendResult"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const toast = (text) => { $("toast").textContent = text; };
+    const pretty = (value) => JSON.stringify(value, null, 2);
+
+    $("adminKey").value = localStorage.getItem("msgbridge.adminKey") || "dev-admin-key";
+    $("loginUser").value = localStorage.getItem("msgbridge.username") || "admin";
+    $("saveKey").onclick = () => {
+      localStorage.setItem("msgbridge.adminKey", $("adminKey").value);
+      toast("admin key saved");
+    };
+    $("loginButton").onclick = login;
+
+    document.querySelectorAll("#tabs button").forEach(button => {
+      button.onclick = () => {
+        document.querySelectorAll("#tabs button").forEach(item => item.classList.remove("active"));
+        document.querySelectorAll("main section").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+        $(button.dataset.tab).classList.add("active");
+      };
+    });
+
+    document.body.addEventListener("click", async (event) => {
+      const action = event.target.dataset.action;
+      if (!action) return;
+      try {
+        if (action === "load-dashboard") await loadDashboard();
+        if (action === "load-apps") await loadApps();
+        if (action === "create-app") await createApp();
+        if (action === "load-channels") await loadChannels();
+        if (action === "create-channel") await createChannel();
+        if (action === "test-channel") await testChannel();
+        if (action === "load-channel-health") await loadChannelHealth();
+        if (action === "load-templates") await loadTemplates();
+        if (action === "create-template") await createTemplate();
+        if (action === "preview-template") await previewTemplate();
+        if (action === "load-routes") await loadRoutes();
+        if (action === "create-route") await createRoute();
+        if (action === "simulate-route") await simulateRoute();
+        if (action === "load-messages") await loadMessages();
+        if (action === "export-messages") await exportMessages();
+        if (action === "purge-messages") await purgeMessages();
+        if (action === "load-audit") await loadAudit();
+        if (action === "load-system") await loadSystemStatus();
+        if (action === "load-users") await loadUsers();
+        if (action === "save-user") await saveUser();
+        if (action === "preview-purge") await previewPurge();
+        if (action === "bulk-retry") await bulkMessageAction("/admin/messages/bulk-retry");
+        if (action === "bulk-terminate") await bulkMessageAction("/admin/messages/bulk-terminate");
+        if (action === "send-message") await sendMessage();
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+
+    async function admin(path, options = {}) {
+      const token = localStorage.getItem("msgbridge.adminToken");
+      const authHeaders = token ? { "Authorization": `Bearer ${token}` } : { "X-MB-Admin-Key": $("adminKey").value };
+      const response = await fetch(path, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+          ...(options.headers || {})
+        }
+      });
+      const data = await response.json();
+      if (!response.ok || data.code !== 0) throw new Error(data.message || response.statusText);
+      return data.data;
+    }
+
+    async function login() {
+      const response = await fetch("/admin/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: $("loginUser").value, password: $("loginPassword").value })
+      });
+      const data = await response.json();
+      if (!response.ok || data.code !== 0) {
+        toast(data.message || "login failed");
+        return;
+      }
+      localStorage.setItem("msgbridge.adminToken", data.data.token);
+      localStorage.setItem("msgbridge.username", data.data.username);
+      toast(`logged in: ${data.data.username} / ${data.data.role}`);
+      await loadDashboard();
+    }
+
+    function table(rows, columns, actions) {
+      const head = `<tr>${columns.map(col => `<th>${col.label}</th>`).join("")}${actions ? "<th>操作</th>" : ""}</tr>`;
+      const body = rows.map(row => `<tr>${
+        columns.map(col => `<td>${formatCell(col.get(row))}</td>`).join("")
+      }${actions ? `<td>${actions(row)}</td>` : ""}</tr>`).join("");
+      return `<table>${head}${body || `<tr><td colspan="${columns.length + (actions ? 1 : 0)}" class="muted">暂无数据</td></tr>`}</table>`;
+    }
+
+    function formatCell(value) {
+      if (value === null || value === undefined) return "";
+      if (typeof value === "object") return `<code>${escapeHtml(JSON.stringify(value))}</code>`;
+      const text = String(value);
+      const cls = text === "SUCCESS" || text === "1" ? "status-ok" : text === "FAILED" || text === "DEAD" || text === "0" ? "status-bad" : text === "RETRYING" || text === "PARTIAL_SUCCESS" ? "status-warn" : "";
+      return `<span class="${cls}">${escapeHtml(text)}</span>`;
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+
+    async function loadDashboard() {
+      const data = await admin("/admin/dashboard");
+      const metrics = [
+        ["今日任务", data.todayMessages],
+        ["发送明细", data.todaySendLogs],
+        ["成功明细", data.successLogs],
+        ["失败明细", data.failedLogs],
+        ["成功率", `${(data.successRate * 100).toFixed(2)}%`],
+        ["待发送", data.pending],
+        ["重试中", data.retrying],
+        ["死信", data.dead]
+      ];
+      $("metrics").innerHTML = metrics.map(([label, value]) => `<div class="metric"><div class="muted">${label}</div><div class="value">${value}</div></div>`).join("");
+      $("dashboardRaw").textContent = pretty(data);
+      toast("dashboard loaded");
+    }
+
+    async function loadApps() {
+      const rows = await admin("/admin/apps");
+      $("appsTable").innerHTML = table(rows, [
+        { label: "appId", get: r => r.appId },
+        { label: "名称", get: r => r.appName },
+        { label: "限流", get: r => r.rateLimitPerMin },
+        { label: "状态", get: r => r.status },
+        { label: "负责人", get: r => r.ownerName }
+      ], r => `<div class="row-actions"><button class="secondary" onclick="resetSecret('${r.appId}')">重置密钥</button><button class="secondary" onclick="setAppStatus('${r.appId}', ${r.status === 1 ? 0 : 1})">${r.status === 1 ? "停用" : "启用"}</button></div>`);
+      toast("apps loaded");
+    }
+
+    async function createApp() {
+      const data = await admin("/admin/apps", {
+        method: "POST",
+        body: JSON.stringify({
+          appId: $("appId").value,
+          appName: $("appName").value,
+          ownerName: $("ownerName").value,
+          rateLimitPerMin: Number($("appRateLimit").value || 600),
+          ipWhitelist: $("appIpWhitelist").value || null
+        })
+      });
+      alert(`appSecret: ${data.appSecret}`);
+      await loadApps();
+    }
+
+    window.resetSecret = async (appId) => {
+      const data = await admin(`/admin/apps/${appId}/reset-secret`, { method: "POST" });
+      alert(`new appSecret: ${data.appSecret}`);
+    };
+
+    window.setAppStatus = async (appId, status) => {
+      await admin(`/admin/apps/${appId}/status`, { method: "POST", body: JSON.stringify({ status }) });
+      await loadApps();
+    };
+
+    async function loadChannels() {
+      const rows = await admin("/admin/channels");
+      $("channelsTable").innerHTML = table(rows, [
+        { label: "code", get: r => r.channelCode },
+        { label: "名称", get: r => r.channelName },
+        { label: "类型", get: r => r.channelType },
+        { label: "配置", get: r => ({ config: r.config, secrets: r.secrets }) },
+        { label: "状态", get: r => r.status }
+      ], r => `<div class="row-actions"><button class="secondary" onclick="setChannelStatus('${r.channelCode}', ${r.status === 1 ? 0 : 1})">${r.status === 1 ? "停用" : "启用"}</button></div>`);
+      toast("channels loaded");
+    }
+
+    async function createChannel() {
+      const payload = JSON.parse($("channelJson").value);
+      const exists = await channelExists(payload.channelCode);
+      await admin(exists ? `/admin/channels/${payload.channelCode}` : "/admin/channels", {
+        method: exists ? "PUT" : "POST",
+        body: JSON.stringify(payload)
+      });
+      await loadChannels();
+    }
+
+    async function channelExists(channelCode) {
+      try {
+        await admin(`/admin/channels/${channelCode}`);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function testChannel() {
+      const result = await admin(`/admin/channels/${$("testChannelCode").value}/test`, {
+        method: "POST",
+        body: JSON.stringify({ title: "MsgBridge 测试", content: "渠道测试消息", msgType: "TEXT" })
+      });
+      alert(pretty(result));
+    }
+
+    async function loadChannelHealth() {
+      $("channelHealth").textContent = pretty(await admin("/admin/channels/health"));
+    }
+
+    window.setChannelStatus = async (channelCode, status) => {
+      await admin(`/admin/channels/${channelCode}/status`, { method: "POST", body: JSON.stringify({ status }) });
+      await loadChannels();
+      await loadChannelHealth();
+    };
+
+    async function loadTemplates() {
+      const rows = await admin("/admin/templates");
+      $("templatesTable").innerHTML = table(rows, [
+        { label: "code", get: r => r.templateCode },
+        { label: "场景", get: r => r.sceneCode },
+        { label: "渠道", get: r => r.channelType },
+        { label: "类型", get: r => r.msgType },
+        { label: "版本", get: r => r.version },
+        { label: "状态", get: r => r.status }
+      ], r => `<div class="row-actions"><button class="secondary" onclick="setTemplateStatus('${r.templateCode}', ${r.status === 1 ? 0 : 1})">${r.status === 1 ? "停用" : "启用"}</button></div>`);
+      toast("templates loaded");
+    }
+
+    async function createTemplate() {
+      const payload = JSON.parse($("templateJson").value);
+      const exists = await templateExists(payload.templateCode);
+      await admin(exists ? `/admin/templates/${payload.templateCode}` : "/admin/templates", {
+        method: exists ? "PUT" : "POST",
+        body: JSON.stringify(payload)
+      });
+      await loadTemplates();
+    }
+
+    async function templateExists(templateCode) {
+      const rows = await admin("/admin/templates");
+      return rows.some(row => row.templateCode === templateCode);
+    }
+
+    async function previewTemplate() {
+      const template = JSON.parse($("templateJson").value);
+      $("templatePreview").textContent = pretty(await admin("/admin/templates/preview", {
+        method: "POST",
+        body: JSON.stringify({
+          sceneCode: template.sceneCode,
+          channelType: template.channelType,
+          msgType: template.msgType,
+          contentTemplate: template.contentTemplate,
+          data: {
+            title: "新订单提醒",
+            customerName: "张三",
+            orderNo: "SO202606010001",
+            amount: "12800",
+            url: "https://crm.example.com/orders/10001"
+          }
+        })
+      }));
+    }
+
+    window.setTemplateStatus = async (templateCode, status) => {
+      await admin(`/admin/templates/${templateCode}/status`, { method: "POST", body: JSON.stringify({ status }) });
+      await loadTemplates();
+    };
+
+    async function loadRoutes() {
+      const rows = await admin("/admin/routes");
+      $("routesTable").innerHTML = table(rows, [
+        { label: "code", get: r => r.ruleCode },
+        { label: "场景", get: r => r.sceneCode },
+        { label: "routeKey", get: r => r.routeKey },
+        { label: "条件", get: r => r.conditionExpr },
+        { label: "目标", get: r => r.targetChannels },
+        { label: "优先级", get: r => r.priority }
+      ], r => `<div class="row-actions"><button class="secondary" onclick="setRouteStatus('${r.ruleCode}', ${r.status === 1 ? 0 : 1})">${r.status === 1 ? "停用" : "启用"}</button></div>`);
+      toast("routes loaded");
+    }
+
+    async function createRoute() {
+      const payload = JSON.parse($("routeJson").value);
+      const exists = await routeExists(payload.ruleCode);
+      await admin(exists ? `/admin/routes/${payload.ruleCode}` : "/admin/routes", {
+        method: exists ? "PUT" : "POST",
+        body: JSON.stringify(payload)
+      });
+      await loadRoutes();
+    }
+
+    async function routeExists(ruleCode) {
+      const rows = await admin("/admin/routes");
+      return rows.some(row => row.ruleCode === ruleCode);
+    }
+
+    async function simulateRoute() {
+      const route = JSON.parse($("routeJson").value);
+      const result = await admin("/admin/routes/simulate", {
+        method: "POST",
+        body: JSON.stringify({ sceneCode: route.sceneCode, routeKey: route.routeKey, data: { amount: "12800" } })
+      });
+      $("routePreview").textContent = pretty(result);
+    }
+
+    window.setRouteStatus = async (ruleCode, status) => {
+      await admin(`/admin/routes/${ruleCode}/status`, { method: "POST", body: JSON.stringify({ status }) });
+      await loadRoutes();
+    };
+
+    async function loadMessages() {
+      const rows = await admin(`/admin/messages?size=50${messageQuery()}`);
+      $("messagesTable").innerHTML = table(rows, [
+        { label: "messageId", get: r => r.messageId },
+        { label: "requestId", get: r => r.requestId },
+        { label: "app", get: r => r.appId },
+        { label: "场景", get: r => r.sceneCode },
+        { label: "状态", get: r => r.status },
+        { label: "重试", get: r => `${r.retryCount}/${r.maxRetryCount}` }
+      ], r => `<div class="row-actions"><button class="secondary" onclick="showMessage('${r.messageId}')">详情</button><button class="secondary" onclick="retryMessage('${r.messageId}')">重试</button><button class="secondary" onclick="terminateMessage('${r.messageId}')">终止</button></div>`);
+      toast("messages loaded");
+    }
+
+    function messageQuery() {
+      const params = new URLSearchParams();
+      if ($("filterAppId").value) params.set("appId", $("filterAppId").value);
+      if ($("filterSceneCode").value) params.set("sceneCode", $("filterSceneCode").value);
+      if ($("filterStatus").value) params.set("status", $("filterStatus").value);
+      if ($("filterRequestId").value) params.set("requestId", $("filterRequestId").value);
+      const value = params.toString();
+      return value ? `&${value}` : "";
+    }
+
+    async function exportMessages() {
+      const token = localStorage.getItem("msgbridge.adminToken");
+      const authHeaders = token ? { "Authorization": `Bearer ${token}` } : { "X-MB-Admin-Key": $("adminKey").value };
+      const response = await fetch(`/admin/messages/export?${messageQuery().replace(/^&/, "")}`, { headers: authHeaders });
+      if (!response.ok) {
+        toast("export failed");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "msgbridge-messages.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+      toast("exported");
+    }
+
+    async function purgeMessages() {
+      const before = $("purgeBefore").value;
+      if (!before) {
+        toast("请输入清理截止时间");
+        return;
+      }
+      if (!confirm(`确认清理 ${before} 之前的消息和发送日志？`)) return;
+      const result = await admin(`/admin/messages/purge?before=${encodeURIComponent(before)}`, { method: "POST" });
+      $("messageDetail").textContent = pretty(result);
+      await loadMessages();
+    }
+
+    async function previewPurge() {
+      const before = $("purgeBefore").value;
+      if (!before) {
+        toast("请输入清理截止时间");
+        return;
+      }
+      $("messageDetail").textContent = pretty(await admin(`/admin/messages/purge-preview?before=${encodeURIComponent(before)}`));
+      toast("purge preview loaded");
+    }
+
+    function bulkMessageIds() {
+      return $("bulkMessageIds").value
+        .split(/[\n,;\s]+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+    }
+
+    async function bulkMessageAction(path) {
+      const messageIds = bulkMessageIds();
+      if (messageIds.length === 0) {
+        toast("请输入批量消息 ID");
+        return;
+      }
+      if (path.includes("terminate") && !confirm(`确认终止 ${messageIds.length} 条消息？`)) return;
+      const result = await admin(path, {
+        method: "POST",
+        body: JSON.stringify({ messageIds })
+      });
+      $("messageDetail").textContent = pretty(result);
+      toast(`bulk action: ${result.succeeded}/${result.requested}`);
+      await loadMessages();
+    }
+
+    window.showMessage = async (messageId) => {
+      $("messageDetail").textContent = pretty(await admin(`/admin/messages/${messageId}`));
+    };
+
+    window.retryMessage = async (messageId) => {
+      await admin(`/admin/messages/${messageId}/retry`, { method: "POST" });
+      await loadMessages();
+    };
+
+    window.terminateMessage = async (messageId) => {
+      await admin(`/admin/messages/${messageId}/terminate`, { method: "POST" });
+      await loadMessages();
+    };
+
+    async function loadAudit() {
+      const rows = await admin("/admin/audit-logs?size=100");
+      $("auditTable").innerHTML = table(rows, [
+        { label: "时间", get: r => r.createdAt },
+        { label: "操作者", get: r => r.actor },
+        { label: "动作", get: r => r.action },
+        { label: "资源", get: r => `${r.resourceType}:${r.resourceId || ""}` },
+        { label: "详情", get: r => r.detail }
+      ]);
+      toast("audit loaded");
+    }
+
+    async function loadSystemStatus() {
+      const data = await admin("/admin/system/status");
+      const counts = data.counts || {};
+      const worker = data.worker || {};
+      const metrics = [
+        ["应用", counts.apps],
+        ["渠道", counts.channels],
+        ["启用渠道", counts.enabledChannels],
+        ["异常渠道", counts.misconfiguredChannels],
+        ["模板", counts.templates],
+        ["路由", counts.routes],
+        ["待发送", counts.pendingMessages],
+        ["重试中", counts.retryingMessages],
+        ["死信", counts.deadMessages],
+        ["Worker", worker.enabled ? "ON" : "OFF"]
+      ];
+      $("systemMetrics").innerHTML = metrics.map(([label, value]) => `<div class="metric"><div class="muted">${label}</div><div class="value">${value ?? 0}</div></div>`).join("");
+      $("systemRaw").textContent = pretty(data);
+      toast(`system loaded${data.warnings && data.warnings.length ? `, warnings: ${data.warnings.length}` : ""}`);
+    }
+
+    async function loadUsers() {
+      const rows = await admin("/admin/users");
+      $("usersTable").innerHTML = table(rows, [
+        { label: "用户名", get: r => r.username },
+        { label: "名称", get: r => r.displayName },
+        { label: "角色", get: r => r.role },
+        { label: "状态", get: r => r.status },
+        { label: "最近登录", get: r => r.lastLoginAt }
+      ], r => `<div class="row-actions"><button class="secondary" onclick="setUserStatus('${r.username}', ${r.status === 1 ? 0 : 1})">${r.status === 1 ? "停用" : "启用"}</button></div>`);
+      toast("users loaded");
+    }
+
+    async function saveUser() {
+      const payload = JSON.parse($("userJson").value);
+      const exists = await userExists(payload.username);
+      await admin(exists ? `/admin/users/${payload.username}` : "/admin/users", {
+        method: exists ? "PUT" : "POST",
+        body: JSON.stringify(payload)
+      });
+      await loadUsers();
+    }
+
+    async function userExists(username) {
+      const rows = await admin("/admin/users");
+      return rows.some(row => row.username === username);
+    }
+
+    window.setUserStatus = async (username, status) => {
+      await admin(`/admin/users/${username}/status`, { method: "POST", body: JSON.stringify({ status }) });
+      await loadUsers();
+    };
+
+    async function sendMessage() {
+      const appId = $("sendAppId").value;
+      const payload = JSON.parse($("sendJson").value);
+      payload.appId = appId;
+      if (!payload.requestId || payload.requestId === "crm-order-20260601-000001") {
+        payload.requestId = `console-${Date.now()}`;
+      }
+      const body = JSON.stringify(payload, null, 2);
+      $("sendJson").value = body;
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const nonce = crypto.randomUUID();
+      const path = "/api/v1/messages/send";
+      const canonical = `POST\n${path}\n${timestamp}\n${nonce}\n${body}`;
+      const signature = await hmacHex($("sendSecret").value, canonical);
+      const response = await fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-MB-App-Id": appId,
+          "X-MB-Timestamp": timestamp,
+          "X-MB-Nonce": nonce,
+          "X-MB-Signature": signature
+        },
+        body
+      });
+      const result = await response.json();
+      $("sendResult").textContent = pretty(result);
+      toast(response.ok && result.code === 0 ? "message accepted" : result.message || "send failed");
+    }
+
+    async function hmacHex(secret, text) {
+      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+      const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text));
+      return [...new Uint8Array(signature)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    loadDashboard().catch(error => toast(error.message));
+  </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: msgbridge-mysql
+    environment:
+      MYSQL_DATABASE: msgbridge
+      MYSQL_USER: msgbridge
+      MYSQL_PASSWORD: msgbridge
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+
+  msgbridge:
+    build: .
+    container_name: msgbridge
+    depends_on:
+      - mysql
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/msgbridge?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: msgbridge
+      SPRING_DATASOURCE_PASSWORD: msgbridge
+      MSGBRIDGE_MASTER_KEY: replace-with-a-long-random-production-key
+      MSGBRIDGE_ADMIN_KEY: replace-with-a-strong-admin-key
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql-data:
